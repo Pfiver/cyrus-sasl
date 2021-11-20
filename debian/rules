@@ -1,0 +1,80 @@
+#!/usr/bin/make -f
+
+include /usr/share/dpkg/default.mk
+include /usr/share/dpkg/buildtools.mk
+
+export CC CFLAGS CPPFLAGS LDFLAGS
+
+BUILD_DIR := build
+DEST_DIR := dest
+
+%:
+	dh $@
+
+override_dh_auto_clean:
+
+	dh_auto_clean -B$(BUILD_DIR)
+
+override_dh_auto_configure:
+
+	dh_auto_configure -B$(BUILD_DIR) -- \
+		\
+		--prefix=/usr \
+		--build=$(DEB_BUILD_GNU_TYPE) \
+		\
+		--enable-static \
+		--enable-shared \
+		--enable-alwaystrue \
+		--enable-cram \
+		--enable-digest \
+		--enable-plain \
+		--enable-anon \
+		--enable-login \
+		--enable-ldapdb \
+		--enable-auth-sasldb \
+		\
+		--disable-otp \
+		--disable-srp \
+		--disable-srp-setpass \
+		--disable-krb4 \
+		--disable-gssapi \
+		--disable-gss_mutexes \
+		--disable-sql \
+		--disable-ntlm \
+		--disable-passdss \
+		--disable-checkapop \
+		--disable-macos-framework \
+		\
+		--with-ldap \
+		--with-pam=/usr \
+		--with-configdir=/etc/sasl2:/etc/sasl:/usr/lib/$(DEB_HOST_MULTIARCH)/sasl2:/usr/lib/sasl2 \
+		--with-plugindir=/usr/lib/$(DEB_HOST_MULTIARCH)/sasl2 \
+		--sysconfdir=/etc \
+		--with-devrandom=/dev/urandom
+
+override_dh_auto_build:
+
+	cd include && make makemd5 && ./makemd5 > md5global.h
+
+	dh_auto_build -B$(BUILD_DIR) -- sasldir=/usr/lib/$(DEB_HOST_MULTIARCH)/sasl2
+
+override_dh_strip:
+
+	dh_strip --no-automatic-dbgsym
+
+override_dh_auto_install:
+
+	dh_auto_install -B$(BUILD_DIR) --destdir=$(DEST_DIR) -- sasldir=/usr/lib/$(DEB_HOST_MULTIARCH)/sasl2
+
+	rm $(DEST_DIR)/usr/lib/$(DEB_HOST_MULTIARCH)/sasl2/*.a
+	rm $(DEST_DIR)/usr/lib/$(DEB_HOST_MULTIARCH)/*.la $(DEST_DIR)/usr/lib/$(DEB_HOST_MULTIARCH)/sasl2/*.la
+
+	mkdir -p $(DEST_DIR)/usr/lib/sasl2
+
+	mv $(DEST_DIR)/usr/sbin/pluginviewer $(DEST_DIR)/usr/sbin/saslpluginviewer
+
+	chrpath -d $(DEST_DIR)/usr/sbin/sasldblistusers2 $(DEST_DIR)/usr/sbin/saslpasswd2
+
+override_dh_install:
+
+	dh_install --sourcedir=$(DEST_DIR)
